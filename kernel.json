@@ -1,0 +1,3 @@
+{"argv":["python","-m","hydro_kernel", "-f", "{connection_file}"],
+ "display_name":"Hydro Python"
+}
