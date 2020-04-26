@@ -106,7 +106,8 @@ def run_cell(droplet_client, code_str, namespace):
 
     # Initialize the program state dictionary.
     hydro_user_ns = HydroBackedDict(droplet_client, namespace)
-    user_ns = CachedDict(hydro_user_ns)
+    # user_ns = CachedDict(hydro_user_ns)
+    user_ns = hydro_user_ns  # Disable app-level caching for now.
 
     # Parse the code to execute.
     nodelist = ast.parse(code_str).body
@@ -126,8 +127,11 @@ def run_cell(droplet_client, code_str, namespace):
         bytecode = compile(node, '<string>', 'single')
         bytecodes.append(bytecode)
 
-    for bytecode in bytecodes:
-        exec(bytecode, globals(), user_ns)
+    try:
+        for bytecode in bytecodes:
+            exec(bytecode, globals(), user_ns)
+    except:
+        sys.stderr.write(str(sys.exc_info()[1]))
 
     # XXX DROPLET HACK
     # Droplet can't handle empty lists, so we append None.
