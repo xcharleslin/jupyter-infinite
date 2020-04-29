@@ -4,9 +4,9 @@ import sys
 import zmq
 
 import cloudpickle as pickle
-
-
 from ipykernel.ipkernel import IPythonKernel
+
+from execution_platforms import LocalPlatform
 
 
 # The five Jupyter sockets:
@@ -62,8 +62,15 @@ class ServerlessKernelClient(IPythonKernel):
     def banner(self):
         return self.shell.banner + "\nServerless edition, by UC Berkeley RISELab, 2020"
 
-    IOPUB_SOCK_BIND = "tcp://*:5555"
-    IOPUB_SOCK_CONNECT = "tcp://localhost:5555"
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.execution_platform = LocalPlatform()
+
+
+    def set_parent(self, ident, parent):
+        super().set_parent(ident, parent)
+        # gosh this is so ugly
+        self.last_parent_message = parent
 
     def do_execute(self,
         code,
@@ -73,27 +80,14 @@ class ServerlessKernelClient(IPythonKernel):
         allow_stdin=False,
     ):
 
-
-
         # Create sockets for iopub forwarding.
         # TODO: shell and control too.
         context = zmq.Context()
         iopub_receiver_socket = context.socket(zmq.DEALER)
-        iopub_receiver_socket.bind(self.IOPUB_SOCK_BIND)
+        iopub_receiver_socket.bind(self.execution_platform.IOPUB_SOCK_BIND)
 
         # Run the serverless run_cell function.
-        # XXX testing version
-        import proxying_client
-        # res = proxying_client.execute({'iopub': self.IOPUB_SOCK_CONNECT}, code)
-        import base64
-        import subprocess
-        nargs = [{'iopub': self.IOPUB_SOCK_CONNECT}, code]
-        nargs = pickle.dumps(nargs)
-        nargs = base64.b64encode(nargs)
-        res = subprocess.run(['./proxying_client.py', nargs], stdout=subprocess.PIPE)
-        res = res.stdout
-        res = base64.b64decode(res)
-        res = pickle.loads(res)
+        future = self.execution_platform.remote_execute(code)
 
         # Get iopub results. Process and forward.
         done = False
@@ -121,14 +115,14 @@ class ServerlessKernelClient(IPythonKernel):
                     content=msg['content'],
                     ident=bytes(msg['msg_type'], encoding='utf-8'),
                     # header=msg['header'],
-                    # parent=msg['parent_header'],
+                    parent=self.last_parent_message['header'],
                 )
 
             except zmq.ZMQError as e:
                 time.sleep(0.05)
 
         # Get the serverless run_cell results.
-        # XXX noop, we have it already
+        res = future.get()
 
         return res['content']
 

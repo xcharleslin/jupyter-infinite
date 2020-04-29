@@ -1,17 +1,15 @@
-#!/usr/bin/env python3.6
-
 import collections.abc
 import sys
 
-from droplet.client.client import DropletConnection
+# from droplet.client.client import DropletConnection
 from ipykernel.ipkernel import IPythonKernel
 
-import client_utils
-from kernel_functions import run_cell
+# import client_utils
+# from kernel_functions import run_cell
 
-DROPLET_EXECUTE_FNAME = 'run_cell'
-HYDRO_ELB_ADDR = 'a5fb01a1c5a5811ea84940e2c3e63f6e-1922551257.us-east-1.elb.amazonaws.com'
-DEVSERVER_IP = '34.239.146.81'
+# DROPLET_EXECUTE_FNAME = 'run_cell'
+# HYDRO_ELB_ADDR = 'a5fb01a1c5a5811ea84940e2c3e63f6e-1922551257.us-east-1.elb.amazonaws.com'
+# DEVSERVER_IP = '34.239.146.81'
 
 
 class CachedDict(collections.abc.MutableMapping):
@@ -75,12 +73,12 @@ class HydroKernel(IPythonKernel):
     #     'file_extension': '.py'
     # }
 
-    banner = "IPython on Hydro"
+    # banner = "IPython on Hydro"
 
-    # def __init__(self, **kwargs):
-    #     # kwargs['user_ns'] = CachedDict(dict())
-    #     # kwargs['user_ns'] = dict()
-    #     super().__init__(**kwargs)
+    def __init__(self, **kwargs):
+        kwargs['user_ns'] = CachedDict(dict())
+        kwargs['user_ns'] = dict()
+        super().__init__(**kwargs)
 
     # def do_execute(
     #     self,
@@ -118,6 +116,14 @@ class HydroKernel(IPythonKernel):
 
 
 
+
+import sys
+
 if __name__ == '__main__':
-    from ipykernel.kernelapp import IPKernelApp
-    IPKernelApp.launch_instance(kernel_class=HydroKernel)
+    # Remove the CWD from sys.path while we load stuff.
+    # This is added back by InteractiveShellApp.init_path()
+    if sys.path[0] == '':
+        del sys.path[0]
+
+    from ipykernel import kernelapp as app
+    app.launch_new_instance(kernel_class=HydroKernel)

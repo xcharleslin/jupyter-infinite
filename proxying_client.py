@@ -19,7 +19,7 @@ def initialize(client_sockets):
 
     class ProxyingClient(JupyterApp, JupyterConsoleApp):
         def initialize(self, argv=None):
-            self.kernel_name = 'cool-python'
+            self.kernel_name = 'jupyter-infinite'
             super(ProxyingClient, self).initialize(argv)
             JupyterConsoleApp.initialize(self)
 
@@ -70,6 +70,7 @@ def initialize(client_sockets):
                         ready = True
 
                 # Flush the shell channel.
+                time.sleep(0.05)
                 while self.kernel_client.shell_channel.msg_ready():
                     self.kernel_client.shell_channel.get_msg()
 
@@ -108,10 +109,14 @@ def initialize(client_sockets):
 
 
 
-    app = ProxyingClient.instance()
+    app = ProxyingClient()
+    time.sleep(0.01)
     app.initialize()
+    time.sleep(0.01)
     app.start()
+    time.sleep(0.01)
     app.prepare_client_sockets(client_sockets)
+    time.sleep(0.01)
     return app
 
 
