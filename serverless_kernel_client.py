@@ -68,8 +68,12 @@ class ServerlessKernelClient(IPythonKernel):
 
 
     def set_parent(self, ident, parent):
+        # It seems that in Jupyter, the last message received by the kernel
+        # is automatically set as kernel-wide state using this set_parent hook.
+        # ??? This is super confusing to me - it assumes the kernel can only
+        # be processing one message at a time?
+        # What happens when there are multiple clients??
         super().set_parent(ident, parent)
-        # gosh this is so ugly
         self.last_parent_message = parent
 
     def do_execute(self,
@@ -92,11 +96,6 @@ class ServerlessKernelClient(IPythonKernel):
         # Get iopub results. Process and forward.
         done = False
 
-        # contents = {'execution_count': 10,
-        #             'data': {'text/plain': repr('hello')},
-        #             'metadata': {}}
-        # self.session.send(self.iopub_socket, 'execute_result', contents,
-        #                   parent={}, ident=b'execute_result')
         while not done:
             try:
                 msg = iopub_receiver_socket.recv(flags=zmq.NOBLOCK)
@@ -106,24 +105,23 @@ class ServerlessKernelClient(IPythonKernel):
                     status = msg["content"]["execution_state"]
                     if status == 'idle':
                         done = True
-                # print(repr(msg))
-                # print(repr(msg['header']['msg_type']))
-                # print(repr(bytes(msg['msg_type'], encoding='utf-8')))
+
+                # Using the same logic from ipykernel.displayhook.
+                # Apparently no header is needed? :s
                 self.session.send(
                     self.iopub_socket,
                     msg['header']['msg_type'],
                     content=msg['content'],
                     ident=bytes(msg['msg_type'], encoding='utf-8'),
-                    # header=msg['header'],
                     parent=self.last_parent_message['header'],
                 )
 
             except zmq.ZMQError as e:
+                # No message yet; sleep a bit so not busy polling.
                 time.sleep(0.05)
 
         # Get the serverless run_cell results.
         res = future.get()
-
         return res['content']
 
 if __name__ == '__main__':

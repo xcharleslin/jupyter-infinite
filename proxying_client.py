@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 
-
-
 # TODO: this needs to launch kernels using custom dicts.
 
 # client_sockets: {
@@ -19,7 +17,7 @@ def initialize(client_sockets):
 
     class ProxyingClient(JupyterApp, JupyterConsoleApp):
         def initialize(self, argv=None):
-            self.kernel_name = 'jupyter-infinite'
+            # self.kernel_name = 'jupyter-infinite'
             super(ProxyingClient, self).initialize(argv)
             JupyterConsoleApp.initialize(self)
 
@@ -71,6 +69,8 @@ def initialize(client_sockets):
 
                 # Flush the shell channel.
                 time.sleep(0.05)
+                    # Startup messages on the shell channel can arrive late
+                    # for some reason, hence why we sleep here as a hotfix.
                 while self.kernel_client.shell_channel.msg_ready():
                     self.kernel_client.shell_channel.get_msg()
 
@@ -96,7 +96,6 @@ def initialize(client_sockets):
                         self.client_iopub_socket.send(pickle.dumps(iopub_msg))
 
 
-
             def _is_idle_message(iopub_msg):
                 msg_type = iopub_msg['header']['msg_type']
                 if msg_type == 'status':
@@ -108,7 +107,9 @@ def initialize(client_sockets):
             return _execute()
 
 
-
+    # Without the sleeps here, the initialized kernel is frozen and unusable half the time.
+    # I'm following the same steps as in launch_instance, but I guess somehow I'm exposing
+    # a race condition of some sort.
     app = ProxyingClient()
     time.sleep(0.01)
     app.initialize()
@@ -127,9 +128,7 @@ def execute(client_sockets, code):
     return execute_reply
 
 
-
-
-
+# Temp for testing: If ran from the command line, do execute().
 def main():
     import base64
     import sys
